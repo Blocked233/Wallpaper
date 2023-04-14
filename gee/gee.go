@@ -111,10 +111,6 @@ func (engine *Engine) POST(pattern string, handler HandlerFunc) {
 	engine.addRoute("POST", pattern, handler)
 }
 
-func (engine *Engine) Run(addr string) error {
-	return http.ListenAndServe(addr, engine)
-}
-
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	var middlewares []HandlerFunc
