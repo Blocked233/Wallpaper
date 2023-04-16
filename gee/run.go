@@ -36,6 +36,12 @@ func (engine *Engine) Run(addr string) error {
 	}
 	defer tlsListen.Close()
 
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://"+r.Host+r.URL.String(), http.StatusMovedPermanently)
+	})
+
+	go http.ListenAndServe(":80", nil)
+
 	return http.Serve(tlsListen, m.HTTPHandler(engine))
 
 }
