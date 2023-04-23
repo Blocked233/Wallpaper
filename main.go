@@ -1,75 +1,95 @@
 package main
 
 import (
-	"gee"
 	"log"
 	"net/http"
+	"os"
+	"time"
+	"wallpaper/cosmosdb"
 
-	"github.com/nutsdb/nutsdb"
+	"github.com/gin-gonic/autotls"
+	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/acme/autocert"
 )
 
-func main() {
-	// open db and access bing api
-	go readJson()
+func init() {
 
-	r := gee.Default()
+	var err error
+
+	client, err = cosmosdb.NewClient()
+	if err != nil {
+		log.Fatal("Failed to create Azure Cosmos DB db client: ", err)
+	}
+
+}
+
+func main() {
+
+	go update_wallpaper()
+
+	r := gin.Default()
+	r.Use(gin.Logger(), gin.Recovery())
 
 	r.LoadHTMLGlob("templates/*")
 	r.Static("/assets", "./static")
 
-	r.GET("/", func(ctx *gee.Context) {
-		http.ServeFile(ctx.Writer, ctx.Req, "./static/html/index.html")
+	r.GET("/", func(ctx *gin.Context) {
+		http.ServeFile(ctx.Writer, ctx.Request, "./static/html/index.html")
 	})
 
 	auth := r.Group("/auth")
 	{
-		bucket := "account"
 
-		auth.POST("/register", func(ctx *gee.Context) {
-
-			if err := db.Update(
-				func(tx *nutsdb.Tx) error {
-					ctx.Req.ParseForm()
-					log.Println(ctx.Req.Form)
-					log.Println(ctx.PostForm("username"), ctx.PostForm("password"))
-
-					if err := tx.Put(bucket, []byte(ctx.PostForm("username")), []byte(ctx.PostForm("password")), 0); err != nil {
-						return err
-					}
-
-					ctx.String(http.StatusOK, "register success")
-
-					return nil
-				}); err != nil {
-				log.Println(err)
+		auth.POST("/register", func(ctx *gin.Context) {
+			err := accountRegister(ctx.PostForm("username"), ctx.PostForm("password"), ctx.PostForm("email"))
+			if err != nil {
+				ctx.JSON(200, gin.H{
+					"status":  "error",
+					"message": err.Error(),
+				})
+				return
 			}
 
+			ctx.JSON(200, gin.H{
+				"status":  "success",
+				"message": "Register success",
+			})
+
+			time.Sleep(1 * time.Second)
+			ctx.Redirect(http.StatusMovedPermanently, "/")
 		})
 
-		auth.POST("/login", func(ctx *gee.Context) {
+		auth.POST("/login", func(ctx *gin.Context) {
 
-			if err := db.Update(
-				func(tx *nutsdb.Tx) error {
-
-					password, err := tx.Get(bucket, []byte(ctx.PostForm("username")))
-					if err != nil {
-						return err
-					}
-
-					if string(password.Value) == ctx.PostForm("password") {
-						ctx.String(http.StatusOK, "login success")
-					}
-
-					return nil
-				}); err != nil {
-				log.Println(err)
+			err := accountLogin(ctx.PostForm("username"), ctx.PostForm("password"))
+			if err != nil {
+				ctx.JSON(200, gin.H{
+					"status":  "error",
+					"message": err.Error(),
+				})
+				return
 			}
+
+			ctx.JSON(200, gin.H{
+				"status":  "success",
+				"message": "Login success",
+			})
+
+			time.Sleep(1 * time.Second)
+			ctx.Redirect(http.StatusMovedPermanently, "/")
 
 		})
 
 	}
 
-	if err := r.Run(":9999"); err != nil {
-		log.Println(err)
+	m := autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(os.Args...),
+		Cache:      autocert.DirCache("secret-dir"),
 	}
+
+	go r.Run(":80")
+
+	log.Fatal(autotls.RunWithManager(r, &m))
+
 }
