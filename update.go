@@ -107,28 +107,9 @@ func upload2DB(val Image) {
 		URL:       bingURL + val.Urlbase + "_UHD.jpg",
 	}
 
-	// download image
-	resp, err := http.Get(item.URL)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		log.Println("download failed")
-		return
-	}
-
-	item.Bytes, err = io.ReadAll(resp.Body)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
 	// upload to cosmosdb
 
-	err = cosmosdb.CreateItem(client, databaseName, "US", item.Month, item)
+	err := cosmosdb.CreateItem(client, databaseName, "US", item.Month, item)
 	if err != nil {
 		log.Printf("createItem failed: %s\n", err)
 	}

@@ -7,7 +7,7 @@ import (
 	"time"
 	"wallpaper/cosmosdb"
 
-	middleware "github.com/Blocked233/middleware/brotli"
+	br "github.com/Blocked233/middleware/brotli"
 	"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/acme/autocert"
@@ -45,7 +45,7 @@ func main() {
 	go update()
 
 	r := gin.Default()
-	r.Use(gin.Logger(), gin.Recovery(), middleware.Brotli(6, nil))
+	r.Use(gin.Logger(), gin.Recovery(), br.Brotli(6))
 
 	r.LoadHTMLGlob("templates/*")
 	r.Static("/assets", "./static")
@@ -105,8 +105,7 @@ func main() {
 		Cache:      autocert.DirCache("secret-dir"),
 	}
 
-	go r.Run(":80")
-
+	// 80 and 443
 	log.Fatal(autotls.RunWithManager(r, &m))
 
 }

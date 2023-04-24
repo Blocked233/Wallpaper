@@ -138,7 +138,6 @@ func CreateItem(client *azcosmos.Client, databaseName, containerName, partitionK
 	switch {
 	case ErrorIs409(err):
 		log.Printf("Item with partitionkey value %s already exists\n", pk)
-		return err
 	case err != nil:
 		return err
 	default:
@@ -234,7 +233,6 @@ type WallpaperItem struct {
 	Month     string `json:"Month"`
 	Copyright string
 	URL       string
-	Bytes     []byte
 }
 
 func QueryWallpaperItems(client *azcosmos.Client, databaseName, containerName string, partitionKey string, query string) (results []WallpaperItem, err error) {
