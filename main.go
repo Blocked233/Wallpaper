@@ -7,6 +7,7 @@ import (
 	"time"
 	"wallpaper/cosmosdb"
 
+	middleware "github.com/Blocked233/middleware/brotli"
 	"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/acme/autocert"
@@ -21,14 +22,30 @@ func init() {
 		log.Fatal("Failed to create Azure Cosmos DB db client: ", err)
 	}
 
+	// Create a database
+	err = cosmosdb.CreateDatabase(client, databaseName)
+	if err != nil {
+		log.Printf("createDatabase failed: %s\n", err)
+	}
+
+	// Create different containers
+	err = cosmosdb.CreateContainer(client, databaseName, "US", partitionKey)
+	if err != nil {
+		log.Printf("createContainer failed: %s\n", err)
+	}
+
+	err = cosmosdb.CreateContainer(client, databaseName, "Account", "/Username")
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main() {
 
-	go update_wallpaper()
+	go update()
 
 	r := gin.Default()
-	r.Use(gin.Logger(), gin.Recovery())
+	r.Use(gin.Logger(), gin.Recovery(), middleware.Brotli(6, nil))
 
 	r.LoadHTMLGlob("templates/*")
 	r.Static("/assets", "./static")

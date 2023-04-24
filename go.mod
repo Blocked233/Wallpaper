@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.5.0
 	github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos v0.3.4
+	github.com/Blocked233/middleware v0.0.0-20230424121443-26769b71e961
 	github.com/gin-gonic/autotls v0.0.5
 	github.com/gin-gonic/gin v1.9.0
 	golang.org/x/crypto v0.8.0
@@ -16,6 +17,7 @@ require (
 )
 
 require (
+	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/bytedance/sonic v1.8.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect

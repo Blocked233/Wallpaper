@@ -234,6 +234,7 @@ type WallpaperItem struct {
 	Month     string `json:"Month"`
 	Copyright string
 	URL       string
+	Bytes     []byte
 }
 
 func QueryWallpaperItems(client *azcosmos.Client, databaseName, containerName string, partitionKey string, query string) (results []WallpaperItem, err error) {

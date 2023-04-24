@@ -21,13 +21,6 @@ type Account struct {
 
 func accountRegister(username, password, email string) error {
 
-	once.Do(func() {
-		err := cosmosdb.CreateContainer(client, databaseName, "Account", "/Username")
-		if err != nil {
-			panic(err)
-		}
-	})
-
 	account := Account{
 		ID:       cosmosdb.HashPartitionKey(username),
 		Username: username,
@@ -43,13 +36,6 @@ func accountRegister(username, password, email string) error {
 }
 
 func accountLogin(username, password string) error {
-
-	once.Do(func() {
-		err := cosmosdb.CreateContainer(client, databaseName, "Account", "/Username")
-		if err != nil {
-			panic(err)
-		}
-	})
 
 	partitionKey := username
 	query := fmt.Sprintf("SELECT * FROM c WHERE c.Username = '%s'", partitionKey)
@@ -73,13 +59,6 @@ func accountLogin(username, password string) error {
 }
 
 func accountUpdate(username, oldPassword, newPassword string) error {
-
-	once.Do(func() {
-		err := cosmosdb.CreateContainer(client, databaseName, "Account", "/Username")
-		if err != nil {
-			panic(err)
-		}
-	})
 
 	partitionKey := username
 	query := fmt.Sprintf("SELECT * FROM c WHERE c.Username = '%s'", partitionKey)
@@ -109,13 +88,6 @@ func accountUpdate(username, oldPassword, newPassword string) error {
 }
 
 func accountDelete(username, password string) error {
-
-	once.Do(func() {
-		err := cosmosdb.CreateContainer(client, databaseName, "Account", "/Username")
-		if err != nil {
-			panic(err)
-		}
-	})
 
 	partitionKey := username
 	query := fmt.Sprintf("SELECT * FROM c WHERE c.Username = '%s'", partitionKey)
