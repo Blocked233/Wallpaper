@@ -1,16 +1,26 @@
 package main
 
 import (
+	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"time"
+	"wallpaper/cache"
 	"wallpaper/cosmosdb"
+	"wallpaper/qiniu"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	br "github.com/Blocked233/middleware/brotli"
+	"github.com/Blocked233/middleware/tunnel"
 	"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/acme/autocert"
+)
+
+var (
+	client *azcosmos.Client
 )
 
 func init() {
@@ -47,12 +57,55 @@ func main() {
 	r := gin.Default()
 	r.Use(gin.Logger(), gin.Recovery(), br.Brotli(6))
 
+	// Must Add funMap before load template
+	r.FuncMap["escape"] = template.HTMLEscapeString
 	r.LoadHTMLGlob("templates/*")
+
 	r.Static("/assets", "./static")
 
 	r.GET("/", func(ctx *gin.Context) {
-		http.ServeFile(ctx.Writer, ctx.Request, "./static/html/index.html")
+
+		params := &wallpaper{TimeURL: make(map[string]string, 31)}
+
+		// update parms.time
+
+		updateMonth(params)
+
+		// get all pictures of this month
+
+		partitionKey := time.Now().Format("200601")
+		query := fmt.Sprintf("SELECT * FROM c WHERE c.Month = '%s'", partitionKey)
+		results, err := cosmosdb.QueryWallpaperItems(client, "bingWallpaper", "US", partitionKey, query)
+		if err != nil {
+			log.Printf("queryItems failed: %s\n", err)
+		}
+
+		params.HeadImgUrl = qiniu.Key2PublicUrl(results[0].ID + ".jpg")
+		params.HeadImgCopyright = results[0].Copyright
+		for _, item := range results {
+			params.TimeURL[item.ID] = qiniu.Key2PublicUrl(item.ID + ".jpg")
+		}
+
+		ctx.HTML(200, "bingTemplate.html", params)
+
 	})
+
+	r.POST("/Message/Tun", func(ctx *gin.Context) {
+		tunnel.GrpcServer.ServeHTTP(ctx.Writer, ctx.Request)
+	})
+
+	cachefile := r.Group("/cachefile")
+	{
+		cachefile.GET("/webp", func(ctx *gin.Context) {
+			b, err := cache.Webp.Get(ctx.Query("key"))
+			if err != nil {
+				ctx.String(404, "Not Found", err)
+				return
+			}
+			ctx.Data(200, "image/webp", b)
+
+		})
+	}
 
 	auth := r.Group("/auth")
 	{

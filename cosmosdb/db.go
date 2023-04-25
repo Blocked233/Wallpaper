@@ -16,13 +16,20 @@ import (
 var (
 	Endpoint string
 	Key      string
+	Client   *azcosmos.Client
 )
 
 func init() {
 
+	var err error
 	// Initialize Azure Cosmos DB
 	Endpoint = ""
 	Key = ""
+
+	Client, err = NewClient()
+	if err != nil {
+		log.Fatal("Failed to create Azure Cosmos DB db client: ", err)
+	}
 
 }
 
@@ -160,6 +167,7 @@ func ReadItemWithID(client *azcosmos.Client, databaseName, containerName, partit
 
 	// Read an Item
 	ctx := context.TODO()
+
 	ItemResponse, err := containerClient.ReadItem(ctx, pk, ItemId, nil)
 	if err != nil {
 		return nil, err
@@ -233,6 +241,7 @@ type WallpaperItem struct {
 	Month     string `json:"Month"`
 	Copyright string
 	URL       string
+	Webp      []byte
 }
 
 func QueryWallpaperItems(client *azcosmos.Client, databaseName, containerName string, partitionKey string, query string) (results []WallpaperItem, err error) {

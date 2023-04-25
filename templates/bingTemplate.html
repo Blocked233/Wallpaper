@@ -4,9 +4,9 @@
     <title>必应壁纸 | Bing Wallpaper</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="img-src *">
     <link rel="stylesheet" href="/assets/css/w3.css">
     <link rel="icon" href="/assets/img/favicon.ico">
-   
 </head>
 <body>
 
@@ -48,7 +48,7 @@
     <div class="w3-row-padding w3-padding-16 w3-center">
         {{range $time, $url := .TimeURL}}
         <div class="w3-third w3-hover-shadow ">
-            <img src="{{$url}}&pid=hp&w=384&h=216" style="width:100%">
+            <img src="/cachefile/webp?key={{$time}}" style="width:100%">
             <p>{{$time}} <a href={{$url}}>Download 4k</a> </p>
         </div>
         {{ end }}

@@ -3,15 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"time"
 	"wallpaper/cosmosdb"
-
-	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
+	"wallpaper/qiniu"
 )
 
 type Image struct {
@@ -55,13 +52,10 @@ type wallpaper struct {
 var (
 	databaseName = "bingWallpaper"
 	partitionKey = "/Month"
-	client       *azcosmos.Client
 
-	bingURL         = "https://www.bing.com"
-	wallpaperParams = &wallpaper{TimeURL: make(map[string]string, 31)}
+	bingURL = "https://www.bing.com"
+	apiAddr = "https://www.bing.com/HPImageArchive.aspx?format=js&n=15&pid=hp&mkt=en-US&uhd=1&uhdwidth=384&uhdheight=216"
 )
-
-const apiAddr = "https://www.bing.com/HPImageArchive.aspx?format=js&n=15&pid=hp&mkt=en-US&uhd=1&uhdwidth=384&uhdheight=216"
 
 func update() {
 
@@ -84,20 +78,27 @@ func update() {
 			continue
 		}
 
-		wallpaperParams.HeadImgUrl = bingURL + jsonmsg.Images[0].Urlbase + "_UHD.jpg"
-		wallpaperParams.HeadImgCopyright = jsonmsg.Images[0].Copyright
+		//wallpaperParams.HeadImgUrl = bingURL + jsonmsg.Images[0].Urlbase + "_UHD.jpg"
+		//wallpaperParams.HeadImgCopyright = jsonmsg.Images[0].Copyright
 
 		for _, val := range jsonmsg.Images {
+
+			qiniu.Upload2Qiniu(val.Enddate+".jpg", bingURL+val.Urlbase+"_UHD.jpg")
 			upload2DB(val)
+			//upload2Redis(val)
 		}
 
-		updateHTML()
+		//updateHTML()
 
+		// Get 8 pics at the first time
+		apiAddr = "https://www.bing.com/HPImageArchive.aspx?format=js&n=1&pid=hp&mkt=en-US&uhd=1&uhdwidth=384&uhdheight=216"
 		time.Sleep(24 * time.Hour)
 	}
 }
 
 func upload2DB(val Image) {
+
+	var err error
 
 	// Create a Item
 	item := cosmosdb.WallpaperItem{
@@ -107,15 +108,47 @@ func upload2DB(val Image) {
 		URL:       bingURL + val.Urlbase + "_UHD.jpg",
 	}
 
-	// upload to cosmosdb
+	// Get webp
+	webpURL := qiniu.Key2PublicUrl(item.ID+".jpg") + "-webp"
+	item.Webp, err = fetchURL(webpURL)
+	if err != nil {
+		log.Printf("fetchURL failed: %s\n", err)
+	}
 
-	err := cosmosdb.CreateItem(client, databaseName, "US", item.Month, item)
+	// Upload to cosmosdb
+	err = cosmosdb.CreateItem(client, databaseName, "US", item.Month, item)
 	if err != nil {
 		log.Printf("createItem failed: %s\n", err)
 	}
+
 }
 
-func updateMonth() {
+func fetchURL(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	data, _ := io.ReadAll(resp.Body)
+	return data, nil
+}
+
+/*
+func upload2Redis(val Image) {
+
+	// Create a Item
+	item := cosmosdb.WallpaperItem{
+		ID:        val.Enddate,     // 20220216
+		Month:     val.Enddate[:6], // 202202
+		URL:       bingURL + val.Urlbase + "_UHD.jpg",
+	}
+
+	// upload to redis
+
+
+}
+*/
+
+func updateMonth(wallpaperParams *wallpaper) {
 	year, month, _ := time.Now().Date()
 
 	for i := 0; i < 12; i++ {
@@ -132,6 +165,7 @@ func updateMonth() {
 	}
 }
 
+/*
 func updateHTML() {
 
 	// update Page Tail Month
@@ -147,8 +181,9 @@ func updateHTML() {
 		log.Printf("queryItems failed: %s\n", err)
 	}
 
+	wallpaperParams.HeadImgUrl = qiniu.Key2PublicUrl(results[0].ID + ".jpg")
 	for _, item := range results {
-		wallpaperParams.TimeURL[item.ID] = item.URL
+		wallpaperParams.TimeURL[item.ID] = qiniu.Key2PublicUrl(item.ID + ".jpg")
 	}
 
 	// template
@@ -228,3 +263,4 @@ func updateHTML() {
 	}
 
 }
+*/
