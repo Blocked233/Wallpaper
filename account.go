@@ -4,12 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"wallpaper/cosmosdb"
-)
-
-var (
-	once sync.Once
 )
 
 type Account struct {

@@ -80,7 +80,7 @@ func main() {
 			log.Printf("queryItems failed: %s\n", err)
 		}
 
-		params.HeadImgUrl = qiniu.Key2PublicUrl(results[0].ID + ".jpg")
+		params.HeadImgUrl = results[0].URL
 		params.HeadImgCopyright = results[0].Copyright
 		for _, item := range results {
 			params.TimeURL[item.ID] = qiniu.Key2PublicUrl(item.ID + ".jpg")
