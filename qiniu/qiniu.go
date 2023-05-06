@@ -8,7 +8,6 @@ import (
 )
 
 var (
-	Bucket        = ""
 	BucketManager *storage.BucketManager
 	Domain        = ""
 	Mac           *qbox.Mac
@@ -16,18 +15,20 @@ var (
 	SecretKey     = ""
 )
 
-func init() {
+func NewQiniu(domain, ak, sk string) {
+	Domain = domain
+	AccessKey = ak
+	SecretKey = sk
+	Mac = qbox.NewMac(ak, sk)
+}
 
-	Mac = qbox.NewMac(AccessKey, SecretKey)
+func Upload2Qiniu(bucket, key, url string) {
+
+	// download image from url
 	cfg := storage.Config{}
 	BucketManager = storage.NewBucketManager(Mac, &cfg)
 
-}
-
-func Upload2Qiniu(key, url string) {
-
-	// download image from url
-	fsize, err := BucketManager.Fetch(url, Bucket, key)
+	fsize, err := BucketManager.Fetch(url, bucket, key)
 	if err != nil {
 		fmt.Println("fetch error:", err)
 		return

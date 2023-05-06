@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestUpdate(t *testing.T) {
@@ -47,4 +49,15 @@ func TestUpdate(t *testing.T) {
 		return
 	}
 
+}
+
+func TestGetWallpapers(t *testing.T) {
+	var err error
+	//d, err := time.Parse("2006-01", "2023-04")
+	if err != nil {
+		t.Error(err)
+	}
+
+	results := getWallpapers(time.Now())
+	fmt.Println(len(results))
 }

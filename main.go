@@ -1,13 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"time"
 	"wallpaper/cache"
+	"wallpaper/config"
 	"wallpaper/cosmosdb"
 	"wallpaper/qiniu"
 
@@ -27,7 +29,12 @@ func init() {
 
 	var err error
 
-	client, err = cosmosdb.NewClient()
+	config := config.GetConfig()
+
+	cache.NewRedisClient(config.RedisPassword)
+	qiniu.NewQiniu(config.Domin, config.AccessKey, config.SecretKey)
+
+	client, err = cosmosdb.NewClient(config.Endpoint, config.Key)
 	if err != nil {
 		log.Fatal("Failed to create Azure Cosmos DB db client: ", err)
 	}
@@ -39,7 +46,7 @@ func init() {
 	}
 
 	// Create different containers
-	err = cosmosdb.CreateContainer(client, databaseName, "US", partitionKey)
+	err = cosmosdb.CreateContainer(client, databaseName, "US", "/Month")
 	if err != nil {
 		log.Printf("createContainer failed: %s\n", err)
 	}
@@ -48,6 +55,9 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	// cache group init
+	cache.NewWallPaperGroup()
 }
 
 func main() {
@@ -55,7 +65,7 @@ func main() {
 	go update()
 
 	r := gin.Default()
-	r.Use(gin.Logger(), gin.Recovery(), br.Brotli(6))
+	r.Use(br.Brotli(6))
 
 	// Must Add funMap before load template
 	r.FuncMap["escape"] = template.HTMLEscapeString
@@ -63,23 +73,25 @@ func main() {
 
 	r.Static("/assets", "./static")
 
+	r.POST("/Message/Tun", func(ctx *gin.Context) {
+		tunnel.GrpcServer.ServeHTTP(ctx.Writer, ctx.Request)
+	})
+
 	r.GET("/", func(ctx *gin.Context) {
 
-		params := &wallpaper{TimeURL: make(map[string]string, 31)}
+		params := &wallpaperParams{TimeURL: make(map[string]string, 31)}
 
 		// update parms.time
 
-		updateMonth(params)
+		updateMonth(time.Now(), params)
 
 		// get all pictures of this month
 
-		partitionKey := time.Now().Format("200601")
-		query := fmt.Sprintf("SELECT * FROM c WHERE c.Month = '%s'", partitionKey)
-		results, err := cosmosdb.QueryWallpaperItems(client, "bingWallpaper", "US", partitionKey, query)
-		if err != nil {
-			log.Printf("queryItems failed: %s\n", err)
-		}
+		results := getWallpapers(time.Now())
 
+		if len(results) == 0 {
+			ctx.AbortWithStatus(404)
+		}
 		params.HeadImgUrl = results[0].URL
 		params.HeadImgCopyright = results[0].Copyright
 		for _, item := range results {
@@ -90,19 +102,74 @@ func main() {
 
 	})
 
-	r.POST("/Message/Tun", func(ctx *gin.Context) {
-		tunnel.GrpcServer.ServeHTTP(ctx.Writer, ctx.Request)
-	})
+	debug := r.Group("/debug")
+	{
+		debug.GET("/pprof", func(ctx *gin.Context) {
+			pprof.Index(ctx.Writer, ctx.Request)
+		})
+		debug.GET("/pprof/cmdline", func(ctx *gin.Context) {
+			pprof.Cmdline(ctx.Writer, ctx.Request)
+		})
+		debug.GET("/pprof/profile", func(ctx *gin.Context) {
+			pprof.Profile(ctx.Writer, ctx.Request)
+		})
+		debug.GET("/pprof/symbol", func(ctx *gin.Context) {
+			pprof.Symbol(ctx.Writer, ctx.Request)
+		})
+
+		debug.GET("/pprof/trace", func(ctx *gin.Context) {
+			pprof.Trace(ctx.Writer, ctx.Request)
+		})
+	}
+
+	wallpaper := r.Group("/wallpaper")
+	{
+		wallpaper.GET("/date", func(ctx *gin.Context) {
+
+			d := ctx.Query("time")
+			if d == "" {
+				ctx.String(404, "Not Found")
+				return
+			}
+
+			t, err := time.Parse("2006-01", d)
+			if err != nil {
+				ctx.String(404, "Not Found")
+				return
+			}
+
+			params := &wallpaperParams{TimeURL: make(map[string]string, 31)}
+
+			updateMonth(t, params)
+			t = t.AddDate(0, 1, -1)
+
+			results := getWallpapers(t)
+			if len(results) == 0 {
+				ctx.AbortWithStatus(404)
+			}
+
+			params.HeadImgUrl = results[0].URL
+			params.HeadImgCopyright = results[0].Copyright
+			for _, item := range results {
+				params.TimeURL[item.ID] = qiniu.Key2PublicUrl(item.ID + ".jpg")
+			}
+
+			ctx.HTML(200, "bingTemplate.html", params)
+		})
+	}
 
 	cachefile := r.Group("/cachefile")
 	{
 		cachefile.GET("/webp", func(ctx *gin.Context) {
-			b, err := cache.Webp.Get(ctx.Query("key"))
+			b, err := cache.Wallpaper.Get(ctx.Query("key"))
 			if err != nil {
 				ctx.String(404, "Not Found", err)
 				return
 			}
-			ctx.Data(200, "image/webp", b)
+
+			result := cosmosdb.WallpaperItem{}
+			json.Unmarshal(b, &result)
+			ctx.Data(200, "image/webp", result.Webp)
 
 		})
 	}
@@ -144,7 +211,6 @@ func main() {
 				"status":  "success",
 				"message": "Login success",
 			})
-
 			time.Sleep(1 * time.Second)
 			ctx.Redirect(http.StatusMovedPermanently, "/")
 
@@ -162,3 +228,7 @@ func main() {
 	log.Fatal(autotls.RunWithManager(r, &m))
 
 }
+
+//go env -w GOOS=linux
+//go build -ldflags="-s -w" ./
+//go tool pprof -http=:8088 https://graphs.eu.org/debug/pprof/profile -seconds 20

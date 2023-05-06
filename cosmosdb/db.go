@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
@@ -19,38 +20,26 @@ var (
 	Client   *azcosmos.Client
 )
 
-func init() {
-
-	var err error
-	// Initialize Azure Cosmos DB
-	Endpoint = ""
-	Key = ""
-
-	Client, err = NewClient()
-	if err != nil {
-		log.Fatal("Failed to create Azure Cosmos DB db client: ", err)
-	}
-
-}
-
 // this is a helper function that swallows 409 errors
 func ErrorIs409(err error) bool {
 	var responseErr *azcore.ResponseError
 	return err != nil && errors.As(err, &responseErr) && responseErr.StatusCode == 409
 }
 
-func NewClient() (*azcosmos.Client, error) {
+func NewClient(azEndpoint, azKey string) (client *azcosmos.Client, err error) {
 	// Create a credential object and Start to create a client
-	cred, err := azcosmos.NewKeyCredential(Key)
+
+	cred, err := azcosmos.NewKeyCredential(azKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a credential: %w", err)
 	}
 
-	client, err := azcosmos.NewClientWithKey(Endpoint, cred, nil)
+	client, err = azcosmos.NewClientWithKey(azEndpoint, cred, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Azure Cosmos DB db client: %w", err)
 	}
 
+	Client = client
 	return client, nil
 }
 
@@ -285,7 +274,7 @@ func QueryWallpaperItems(client *azcosmos.Client, databaseName, containerName st
 }
 
 // QueryItem queries an Item in the container and returns the first result
-func QueryItem(client *azcosmos.Client, databaseName, containerName string, partitionKey string, query string) ([]byte, error) {
+func QueryItems(client *azcosmos.Client, databaseName, containerName string, partitionKey string, query string) (results [][]byte, err error) {
 
 	// create container client
 	containerClient, err := client.NewContainer(databaseName, containerName)
@@ -297,23 +286,26 @@ func QueryItem(client *azcosmos.Client, databaseName, containerName string, part
 	pk := azcosmos.NewPartitionKeyString(partitionKey)
 
 	// read multiple Items
-	//ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	ctx := context.TODO()
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 
 	ItemPager := containerClient.NewQueryItemsPager(query, pk, nil)
 
 	for ItemPager.More() {
 
+		if err := ctx.Err(); err != nil {
+			return results, err
+		}
+
 		ItemList, err := ItemPager.NextPage(ctx)
 		if err != nil {
-			return nil, err
+			return results, err
 		}
+
 		for _, ItemBytes := range ItemList.Items {
 
-			return ItemBytes, nil
+			results = append(results, ItemBytes)
 		}
-
 	}
 
-	return nil, nil
+	return results, nil
 }

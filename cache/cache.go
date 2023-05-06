@@ -44,7 +44,7 @@ func NewGroup(name string, getter Getter) *Group {
 	g := &Group{
 		name:      name,
 		getter:    getter,
-		mainCache: redisClient,
+		mainCache: RedisClient,
 		loader:    &singleflight.Group{},
 	}
 	groups[name] = g
@@ -68,6 +68,19 @@ func (g *Group) Get(key string) ([]byte, error) {
 		return v, nil
 	}
 	return g.load(key)
+}
+
+func (g *Group) HGet(key, field string) (b []byte, err error) {
+	if key == "" || field == "" {
+		return nil, fmt.Errorf("key or field is required")
+	}
+	if v, err := g.mainCache.HGet(key, field).Bytes(); err == nil {
+		log.Println("[Cache] hit")
+		return v, nil
+	}
+
+	// Situation: cache not exist
+	return g.load(key + field)
 }
 
 func (g *Group) load(key string) (b []byte, err error) {

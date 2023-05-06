@@ -4,16 +4,18 @@ import (
 	"github.com/go-redis/redis"
 )
 
-var redisClient *redis.Client
+var (
+	RedisClient *redis.Client
+)
 
-func init() {
-	redisClient = redis.NewClient(&redis.Options{
+func NewRedisClient(redisPassword string) {
+	RedisClient = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
-		Password: "",
+		Password: redisPassword,
 		DB:       0,
 	})
 }
 
 func GetRedisClient() *redis.Client {
-	return redisClient
+	return RedisClient
 }

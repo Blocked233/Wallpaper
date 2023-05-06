@@ -14,7 +14,7 @@
 <nav class="w3-sidebar w3-bar-block w3-card w3-top w3-xlarge w3-animate-left" style="display:none;z-index:2;max-width:200px;min-width:100px" id="mySidebar">
     <a href="javascript:void(0)" onclick="w3_close()" class="w3-bar-item w3-button">收起</a>
     {{range $Time:=.Time}}
-    <a href="/assets/html/{{$Time}}.html" onclick="w3_close()" class="w3-bar-item w3-button w3-hover-text-green w3-large">{{$Time}}</a>
+    <a href="/wallpaper/date?time={{$Time}}" onclick="w3_close()" class="w3-bar-item w3-button w3-hover-text-green w3-large">{{$Time}}</a>
     {{end}}
 </nav>
 
@@ -35,7 +35,7 @@
 
     <!-- Navbar (placed at the bottom of the header image) -->
     <div class="w3-bar w3-light-grey w3-round w3-display-bottommiddle w3-hide-small" style="bottom:-16px">
-        <a href="#" class="w3-bar-item w3-button">Homepage</a>
+        <a href="/" class="w3-bar-item w3-button">Homepage</a>
         <a href="#portfolio" class="w3-bar-item w3-button w3-hover-text-green"  onclick="w3_open()">List</a>
         <a href="/assets/html/register.html" class="w3-bar-item w3-button">Register</a>
         <a href="/assets/html/login.html" class="w3-bar-item w3-button">Login</a>
@@ -49,7 +49,7 @@
         {{range $time, $url := .TimeURL}}
         <div class="w3-third w3-hover-shadow ">
             <img src="/cachefile/webp?key={{$time}}" style="width:100%">
-            <p>{{$time}} <a href={{$url}}>Download 4k</a> </p>
+            <p>{{$time}} <a href={{$url}} download="{{$time}}.jpg">Download 4k</a> </p>
         </div>
         {{ end }}
     </div>
@@ -60,7 +60,7 @@
         <div class="w3-container w3-white">
             <p>
                 {{range $Time:=.Time}}
-                <a class="w3-tag w3-button w3-hover-green w3-light-grey w3-margin-bottom" href="/assets/html/{{$Time}}.html">
+                <a class="w3-tag w3-button w3-hover-green w3-light-grey w3-margin-bottom" href="/wallpaper/date?time={{$Time}}">
                     {{$Time}}
                 </a> 
                 {{end}}

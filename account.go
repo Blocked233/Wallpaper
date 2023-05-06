@@ -34,14 +34,14 @@ func accountLogin(username, password string) error {
 
 	partitionKey := username
 	query := fmt.Sprintf("SELECT * FROM c WHERE c.Username = '%s'", partitionKey)
-	itemBytes, err := cosmosdb.QueryItem(client, databaseName, "Account", partitionKey, query)
+	itemBytes, err := cosmosdb.QueryItems(client, databaseName, "Account", partitionKey, query)
 	if err != nil {
 		return err
 	}
 
 	var account Account
 
-	err = json.Unmarshal(itemBytes, &account)
+	err = json.Unmarshal(itemBytes[0], &account)
 	if err != nil {
 		return err
 	}
@@ -57,14 +57,14 @@ func accountUpdate(username, oldPassword, newPassword string) error {
 
 	partitionKey := username
 	query := fmt.Sprintf("SELECT * FROM c WHERE c.Username = '%s'", partitionKey)
-	itemBytes, err := cosmosdb.QueryItem(client, databaseName, "Account", partitionKey, query)
+	itemBytes, err := cosmosdb.QueryItems(client, databaseName, "Account", partitionKey, query)
 	if err != nil {
 		return err
 	}
 
 	var account Account
 
-	err = json.Unmarshal(itemBytes, &account)
+	err = json.Unmarshal(itemBytes[0], &account)
 	if err != nil {
 		return err
 	}
@@ -86,14 +86,14 @@ func accountDelete(username, password string) error {
 
 	partitionKey := username
 	query := fmt.Sprintf("SELECT * FROM c WHERE c.Username = '%s'", partitionKey)
-	itemBytes, err := cosmosdb.QueryItem(client, databaseName, "Account", partitionKey, query)
+	itemBytes, err := cosmosdb.QueryItems(client, databaseName, "Account", partitionKey, query)
 	if err != nil {
 		return err
 	}
 
 	var account Account
 
-	err = json.Unmarshal(itemBytes, &account)
+	err = json.Unmarshal(itemBytes[0], &account)
 	if err != nil {
 		return err
 	}
